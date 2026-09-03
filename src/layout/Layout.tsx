@@ -27,7 +27,7 @@ export default function Layout() {
         <div className="h-20 flex items-center px-6 border-b border-border/50">
           <Link to="/" className="flex items-center gap-3">
             <div className="text-accent">
-              <Hexagon fill="currentColor" size="{28}"/>            </div>
+            <Hexagon fill="currentColor" size="{28}"/>            </div>
             <span className="text-xl font-bold tracking-wide">YUPOOMGR</span>
           </Link>
         </div>
@@ -60,7 +60,9 @@ export default function Layout() {
           <div className="bg-background rounded-xl p-4 border border-border">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm font-semibold text-secondary">Taux de change</span>
-              <span className="flex items-center gap-1.5 text-xs text-success"><div className="w-1.5 h-1.5 rounded-full bg-success"></div> En ligne</span>
+              <span className="flex items-center gap-1.5 text-xs text-success">
+                <div className="w-1.5 h-1.5 rounded-full bg-success"></div> En ligne
+              </span>
             </div>
             <p className="text-lg font-bold mb-1">1 EUR = {settings.exchangeRate} CNY</p>
             <p className="text-[10px] text-muted mb-3">Mis à jour récemment</p>

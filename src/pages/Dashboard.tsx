@@ -26,16 +26,14 @@ export default function Dashboard() {
       
       {/* Ligne 1 : Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard icon={Package} label="Produits" value={products.length} subtext="+12 ce mois" colorClass="bg-accent/10 text-accent" />
-        <StatCard icon={Star} label="Favoris" value={favoriteProducts.length} subtext="+5 ce mois" colorClass="bg-success/10 text-success" />
-        <StatCard icon={Tags} label="Catégories" value={new Set(products.map(p=>p.category)).size} subtext="Total" colorClass="bg-warning/10 text-warning" />
-        <StatCard icon={Users} label="Vendeurs" value={new Set(products.map(p=>p.seller).filter(Boolean)).size} subtext="+2 ce mois" colorClass="bg-blue-500/10 text-blue-500" />
+        <StatCard icon={Package} label="Produits" value={products.length} subtext="+12 ce mois" colorClass="bg-accent/20 text-accent" />
+        <StatCard icon={Star} label="Favoris" value={favoriteProducts.length} subtext="+5 ce mois" colorClass="bg-success/20 text-success" />
+        <StatCard icon={Tags} label="Catégories" value={new Set(products.map(p=>p.category)).size} subtext="Total" colorClass="bg-warning/20 text-warning" />
+        <StatCard icon={Users} label="Vendeurs" value={new Set(products.map(p=>p.seller).filter(Boolean)).size} subtext="+2 ce mois" colorClass="bg-blue-500/20 text-blue-500" />
       </div>
 
-      {/* Ligne 2 : Grilles */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         
-        {/* Ajouts Récents (2/3) */}
         <div className="xl:col-span-2 bg-surface rounded-2xl border border-border p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="font-bold flex items-center gap-2"><Package size={18} className="text-accent"/> Ajouts récents</h2>
