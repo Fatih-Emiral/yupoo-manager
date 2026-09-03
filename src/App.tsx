@@ -1,15 +1,16 @@
 import { useEffect } from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import Layout from './layout/Layout';
 import { useStore } from './store/useStore';
-import Calculator from './pages/Calculator';
+
+// Pages
 import Dashboard from './pages/Dashboard';
-
-// Vues simplifiées (à créer dans src/pages)
-import Import from './pages/Import';
 import Catalog from './pages/Catalog';
+import Import from './pages/Import';
+import Calculator from './pages/Calculator';
+import Settings from './pages/Settings';
 
-function App() {
+export default function App() {
   const loadProducts = useStore(state => state.loadProducts);
 
   useEffect(() => {
@@ -25,11 +26,9 @@ function App() {
           <Route path="favorites" element={<div>Favoris (À venir)</div>} />
           <Route path="import" element={<Import />} />
           <Route path="calculator" element={<Calculator />} />
-          <Route path="settings" element={<div>Paramètres (À venir)</div>} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </HashRouter>
   );
 }
-
-export default App;
