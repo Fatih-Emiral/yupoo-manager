@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { Save, Download, Upload, Trash2, AlertTriangle, Check } from 'lucide-react';
+import { Save, Download, Trash2, Check } from 'lucide-react';
 import localforage from 'localforage';
 
 export default function Settings() {

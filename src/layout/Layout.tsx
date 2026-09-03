@@ -27,8 +27,7 @@ export default function Layout() {
         <div className="h-20 flex items-center px-6 border-b border-border/50">
           <Link to="/" className="flex items-center gap-3">
             <div className="text-accent">
-              <Hexagon size={28} weight="fill" />
-            </div>
+              <Hexagon fill="currentColor" size="{28}"/>            </div>
             <span className="text-xl font-bold tracking-wide">YUPOOMGR</span>
           </Link>
         </div>

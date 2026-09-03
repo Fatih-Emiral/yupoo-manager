@@ -1,4 +1,4 @@
-import { X, ExternalLink, Calculator, Star, ShoppingBag, Truck, CheckCircle2 } from 'lucide-react';
+import { X, ExternalLink, Calculator, Star, CheckCircle2 } from 'lucide-react';
 import type { Product } from '../../types';
 import { calculateTotalCost, calculateProfit, calculateROI } from '../../core/calculator';
 import { useStore } from '../../store/useStore';
@@ -10,7 +10,7 @@ interface Props {
 }
 
 export default function ProductModal({ product, onClose }: Props) {
-  const { toggleFavorite, settings } = useStore();
+  const { toggleFavorite } = useStore();
   const totalCost = calculateTotalCost(product.priceEur, product.shippingCost || 0, product.otherCosts || 0);
   const profit = calculateProfit(product.resalePrice || 0, totalCost);
   const roi = calculateROI(profit, totalCost);
