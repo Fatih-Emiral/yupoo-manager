@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './layout/Layout';
 import { useStore } from './store/useStore';
 import Calculator from './pages/Calculator';
