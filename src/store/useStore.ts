@@ -1,6 +1,39 @@
 import { create } from 'zustand';
 import type { Product, AppSettings, Seller } from '../types';
 
+// --- SYSTÈME DE STOCKAGE HAUTE CAPACITÉ (INDEXED-DB) ---
+// Contourne la limite de 5Mo du localStorage classique
+const DB_NAME = 'YupooMgrDB';
+const STORE_NAME = 'store';
+
+function getDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore(STORE_NAME);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function dbGet(key: string): Promise<any> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(key);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function dbSet(key: string, value: any): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).put(value, key);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+// --------------------------------------------------------
+
 interface StoreState {
   products: Product[];
   trashedProducts: Product[];
@@ -24,7 +57,7 @@ interface StoreState {
   deleteSeller: (id: string) => Promise<void>;
 }
 
-export const useStore = create<StoreState>((set) => ({
+export const useStore = create<StoreState>((set, get) => ({
   products: [],
   trashedProducts: [],
   settings: {
@@ -33,109 +66,116 @@ export const useStore = create<StoreState>((set) => ({
   },
   sellers: [],
 
+  // --- PRODUITS ---
   loadProducts: async () => {
-    const data = localStorage.getItem('yupoomgr_products');
-    const trashData = localStorage.getItem('yupoomgr_trashed_products');
-    if (data) set({ products: JSON.parse(data) });
-    if (trashData) set({ trashedProducts: JSON.parse(trashData) });
+    try {
+      // 1. On cherche dans la grande mémoire
+      let data = await dbGet('yupoomgr_products');
+      
+      // 2. MIGRATION AUTOMATIQUE : Si c'est vide, on récupère tes anciens produits du localStorage
+      if (!data && localStorage.getItem('yupoomgr_products')) {
+        data = localStorage.getItem('yupoomgr_products');
+        if (data) await dbSet('yupoomgr_products', data);
+      }
+
+      let trashData = await dbGet('yupoomgr_trashed_products');
+      if (!trashData && localStorage.getItem('yupoomgr_trashed_products')) {
+        trashData = localStorage.getItem('yupoomgr_trashed_products');
+        if (trashData) await dbSet('yupoomgr_trashed_products', trashData);
+      }
+
+      if (data) set({ products: JSON.parse(data) });
+      if (trashData) set({ trashedProducts: JSON.parse(trashData) });
+    } catch (e) {
+      console.error("Erreur de chargement", e);
+    }
   },
   
   addProduct: async (product) => {
-    set((state) => {
-      const newProducts = [product, ...state.products];
-      localStorage.setItem('yupoomgr_products', JSON.stringify(newProducts));
-      return { products: newProducts };
-    });
+    const newProducts = [product, ...get().products];
+    set({ products: newProducts });
+    await dbSet('yupoomgr_products', JSON.stringify(newProducts));
   },
 
   updateProduct: async (product) => {
-    set((state) => {
-      const newProducts = state.products.map(p => p.id === product.id ? product : p);
-      localStorage.setItem('yupoomgr_products', JSON.stringify(newProducts));
-      return { products: newProducts };
-    });
+    const newProducts = get().products.map(p => p.id === product.id ? product : p);
+    set({ products: newProducts });
+    await dbSet('yupoomgr_products', JSON.stringify(newProducts));
   },
   
-  // Envoi vers la corbeille au lieu de supprimer définitivement
   deleteProduct: async (id) => {
-    set((state) => {
-      const productToTrash = state.products.find(p => p.id === id);
-      if (!productToTrash) return state;
-      
-      const newProducts = state.products.filter(p => p.id !== id);
-      const newTrashed = [productToTrash, ...state.trashedProducts];
-      
-      localStorage.setItem('yupoomgr_products', JSON.stringify(newProducts));
-      localStorage.setItem('yupoomgr_trashed_products', JSON.stringify(newTrashed));
-      return { products: newProducts, trashedProducts: newTrashed };
-    });
+    const productToTrash = get().products.find(p => p.id === id);
+    if (!productToTrash) return;
+    
+    const newProducts = get().products.filter(p => p.id !== id);
+    const newTrashed = [productToTrash, ...get().trashedProducts];
+    
+    set({ products: newProducts, trashedProducts: newTrashed });
+    await dbSet('yupoomgr_products', JSON.stringify(newProducts));
+    await dbSet('yupoomgr_trashed_products', JSON.stringify(newTrashed));
   },
 
   restoreProduct: async (id) => {
-    set((state) => {
-      const productToRestore = state.trashedProducts.find(p => p.id === id);
-      if (!productToRestore) return state;
-      
-      const newTrashed = state.trashedProducts.filter(p => p.id !== id);
-      const newProducts = [productToRestore, ...state.products];
-      
-      localStorage.setItem('yupoomgr_trashed_products', JSON.stringify(newTrashed));
-      localStorage.setItem('yupoomgr_products', JSON.stringify(newProducts));
-      return { trashedProducts: newTrashed, products: newProducts };
-    });
+    const productToRestore = get().trashedProducts.find(p => p.id === id);
+    if (!productToRestore) return;
+    
+    const newTrashed = get().trashedProducts.filter(p => p.id !== id);
+    const newProducts = [productToRestore, ...get().products];
+    
+    set({ trashedProducts: newTrashed, products: newProducts });
+    await dbSet('yupoomgr_trashed_products', JSON.stringify(newTrashed));
+    await dbSet('yupoomgr_products', JSON.stringify(newProducts));
   },
 
   hardDeleteProduct: async (id) => {
-    set((state) => {
-      const newTrashed = state.trashedProducts.filter(p => p.id !== id);
-      localStorage.setItem('yupoomgr_trashed_products', JSON.stringify(newTrashed));
-      return { trashedProducts: newTrashed };
-    });
+    const newTrashed = get().trashedProducts.filter(p => p.id !== id);
+    set({ trashedProducts: newTrashed });
+    await dbSet('yupoomgr_trashed_products', JSON.stringify(newTrashed));
   },
 
   emptyTrash: async () => {
-    set(() => {
-      localStorage.setItem('yupoomgr_trashed_products', JSON.stringify([]));
-      return { trashedProducts: [] };
-    });
+    set({ trashedProducts: [] });
+    await dbSet('yupoomgr_trashed_products', JSON.stringify([]));
   },
   
   toggleFavorite: (id) => {
-    set((state) => {
-      const newProducts = state.products.map(p => p.id === id ? { ...p, favorite: !p.favorite } : p);
-      localStorage.setItem('yupoomgr_products', JSON.stringify(newProducts));
-      return { products: newProducts };
-    });
+    const newProducts = get().products.map(p => p.id === id ? { ...p, favorite: !p.favorite } : p);
+    set({ products: newProducts });
+    dbSet('yupoomgr_products', JSON.stringify(newProducts));
   },
 
-  updateSettings: async (settings) => set(() => ({ settings })),
+  // --- PARAMÈTRES ---
+  updateSettings: async (settings) => set({ settings }),
+
+  // --- REVENDEURS ---
+  loadSellers: async () => {
+    try {
+      let data = await dbGet('yupoomgr_sellers');
+      if (!data && localStorage.getItem('yupoomgr_sellers')) {
+        data = localStorage.getItem('yupoomgr_sellers');
+        if (data) await dbSet('yupoomgr_sellers', data);
+      }
+      if (data) set({ sellers: JSON.parse(data) });
+    } catch (e) {
+      console.error("Erreur chargement vendeurs", e);
+    }
+  },
 
   addSeller: async (seller) => {
-    set((state) => {
-      const newSellers = [...state.sellers, seller];
-      localStorage.setItem('yupoomgr_sellers', JSON.stringify(newSellers));
-      return { sellers: newSellers };
-    });
+    const newSellers = [...get().sellers, seller];
+    set({ sellers: newSellers });
+    await dbSet('yupoomgr_sellers', JSON.stringify(newSellers));
   },
 
   updateSeller: async (seller) => {
-    set((state) => {
-      const newSellers = state.sellers.map(s => s.id === seller.id ? seller : s);
-      localStorage.setItem('yupoomgr_sellers', JSON.stringify(newSellers));
-      return { sellers: newSellers };
-    });
+    const newSellers = get().sellers.map(s => s.id === seller.id ? seller : s);
+    set({ sellers: newSellers });
+    await dbSet('yupoomgr_sellers', JSON.stringify(newSellers));
   },
 
   deleteSeller: async (id) => {
-    set((state) => {
-      const newSellers = state.sellers.filter(s => s.id !== id);
-      localStorage.setItem('yupoomgr_sellers', JSON.stringify(newSellers));
-      return { sellers: newSellers };
-    });
-  },
-
-  loadSellers: async () => {
-    const data = localStorage.getItem('yupoomgr_sellers');
-    if (data) set({ sellers: JSON.parse(data) });
+    const newSellers = get().sellers.filter(s => s.id !== id);
+    set({ sellers: newSellers });
+    await dbSet('yupoomgr_sellers', JSON.stringify(newSellers));
   }
 }));
