@@ -1,27 +1,48 @@
 import { create } from 'zustand';
-import type { Product, AppSettings } from '../types/index';
-import { dbService } from '../services/LocalDB';
+import type { Product, AppSettings, Seller } from '../types';
 
 interface StoreState {
   products: Product[];
   settings: AppSettings;
-  isLoading: boolean;
-  loadProducts: () => Promise<void>;
-  addProduct: (product: Product) => Promise<void>;
-  updateProduct: (product: Product) => Promise<void>;
-  deleteProduct: (id: string) => Promise<void>;
-  toggleFavorite: (id: string) => Promise<void>;
-  setExchangeRate: (rate: number) => void;
-  updateSettings: (newSettings: Partial<AppSettings>) => void;
   sellers: Seller[];
+  loadProducts: () => Promise<void>;
+  updateProduct: (product: Product) => Promise<void>;
+  toggleFavorite: (id: string) => void;
   addSeller: (seller: Seller) => Promise<void>;
   updateSeller: (seller: Seller) => Promise<void>;
   deleteSeller: (id: string) => Promise<void>;
   loadSellers: () => Promise<void>;
 }
 
-export const useStore = create<StoreState>((set, get) => ({
+export const useStore = create<StoreState>((set) => ({
+  products: [],
+  settings: {
+    exchangeRate: 7.8,
+    roiThresholds: { medium: 20, good: 40, excellent: 60 }
+  },
   sellers: [],
+
+  loadProducts: async () => {
+    const data = localStorage.getItem('yupoomgr_products');
+    if (data) set({ products: JSON.parse(data) });
+  },
+  
+  updateProduct: async (product) => {
+    set((state) => {
+      const newProducts = state.products.map(p => p.id === product.id ? product : p);
+      localStorage.setItem('yupoomgr_products', JSON.stringify(newProducts));
+      return { products: newProducts };
+    });
+  },
+  
+  toggleFavorite: (id) => {
+    set((state) => {
+      const newProducts = state.products.map(p => p.id === id ? { ...p, favorite: !p.favorite } : p);
+      localStorage.setItem('yupoomgr_products', JSON.stringify(newProducts));
+      return { products: newProducts };
+    });
+  },
+
   addSeller: async (seller) => {
     set((state) => {
       const newSellers = [...state.sellers, seller];
@@ -29,6 +50,7 @@ export const useStore = create<StoreState>((set, get) => ({
       return { sellers: newSellers };
     });
   },
+
   updateSeller: async (seller) => {
     set((state) => {
       const newSellers = state.sellers.map(s => s.id === seller.id ? seller : s);
@@ -36,6 +58,7 @@ export const useStore = create<StoreState>((set, get) => ({
       return { sellers: newSellers };
     });
   },
+
   deleteSeller: async (id) => {
     set((state) => {
       const newSellers = state.sellers.filter(s => s.id !== id);
@@ -43,58 +66,9 @@ export const useStore = create<StoreState>((set, get) => ({
       return { sellers: newSellers };
     });
   },
+
   loadSellers: async () => {
     const data = localStorage.getItem('yupoomgr_sellers');
     if (data) set({ sellers: JSON.parse(data) });
-  },
-  products: [],
-  settings: { 
-    exchangeRate: 7.8,
-    roiThresholds: { medium: 30, good: 50, excellent: 100 }
-  },
-  isLoading: true,
-
-  loadProducts: async () => {
-    set({ isLoading: true });
-    const products = await dbService.getAll();
-    set({ products, isLoading: false });
-  },
-
-  addProduct: async (product) => {
-    await dbService.save(product);
-    set((state) => ({ products: [product, ...state.products] }));
-  },
-
-  updateProduct: async (product) => {
-    await dbService.save(product);
-    set((state) => ({
-      products: state.products.map(p => p.id === product.id ? product : p)
-    }));
-  },
-
-  deleteProduct: async (id) => {
-    await dbService.delete(id);
-    set((state) => ({
-      products: state.products.filter(p => p.id !== id)
-    }));
-  },
-
-  toggleFavorite: async (id) => {
-    const product = get().products.find(p => p.id === id);
-    if (product) {
-      const updated = { ...product, favorite: !product.favorite };
-      await dbService.save(updated);
-      set((state) => ({
-        products: state.products.map(p => p.id === id ? updated : p)
-      }));
-    }
-  },
-
-  setExchangeRate: (rate) => set((state) => ({ 
-    settings: { ...state.settings, exchangeRate: rate } 
-  })),
-
-  updateSettings: (newSettings) => set((state) => ({
-    settings: { ...state.settings, ...newSettings }
-  }))
+  }
 }));

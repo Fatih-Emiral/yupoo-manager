@@ -18,7 +18,6 @@ export default function Catalog() {
 
   const categories = ['ALL', ...Array.from(new Set(products.map(p => p.category)))];
   
-  // Combinaison des vendeurs officiels (nouveau système) et des anciens noms
   const officialSellers = useStore(state => state.sellers);
   const legacySellers = Array.from(new Set(products.map(p => p.seller).filter(Boolean)));
   const combinedSellers = ['ALL', ...Array.from(new Set([...officialSellers.map(s => s.name), ...legacySellers]))];
@@ -70,7 +69,7 @@ export default function Catalog() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-3 md:gap-4 hidden md:flex">
+      <div className="hidden md:flex flex-col md:flex-row justify-between items-start md:items-end gap-3 md:gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Catalogue</h1>
           <p className="text-muted mt-1">{filteredProducts.length} produit(s) trouvé(s)</p>
@@ -88,7 +87,6 @@ export default function Catalog() {
         />
       </div>
 
-      {/* Barre de Filtres avec scroll horizontal sur mobile */}
       <div className="flex overflow-x-auto no-scrollbar scroll-smooth-ios flex-nowrap md:flex-wrap items-center gap-2 md:gap-3 bg-transparent md:bg-surface md:p-3 md:rounded-xl md:border md:border-border pb-1 md:pb-0">
         <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="whitespace-nowrap flex-shrink-0 bg-surface md:bg-background border border-border text-sm rounded-lg px-3 py-2.5 h-10 md:h-auto text-primary focus:outline-none focus:border-accent">
           <option value="ALL">Catégories</option>

@@ -15,10 +15,12 @@ import SellerDetail from './pages/SellerDetail';
 
 export default function App() {
   const loadProducts = useStore(state => state.loadProducts);
+  const loadSellers = useStore(state => state.loadSellers);
 
   useEffect(() => {
     loadProducts();
-  }, [loadProducts]);
+    loadSellers();
+  }, [loadProducts, loadSellers]);
 
   return (
     <HashRouter>
@@ -26,12 +28,12 @@ export default function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
           <Route path="catalog" element={<Catalog />} />
+          <Route path="sellers" element={<Sellers />} />
+          <Route path="sellers/:id" element={<SellerDetail />} />
           <Route path="favorites" element={<Favorites />} />
           <Route path="import" element={<Import />} />
           <Route path="calculator" element={<Calculator />} />
           <Route path="settings" element={<Settings />} />
-          <Route path="sellers" element={<Sellers />} />
-          <Route path="sellers/:id" element={<SellerDetail />} />
         </Route>
       </Routes>
     </HashRouter>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { Store, Search, ExternalLink, Plus, MoreHorizontal, Edit, Trash2, X } from 'lucide-react';
+import { Store, Search, ExternalLink, Plus, Edit, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Seller } from '../types';
 
@@ -8,12 +8,10 @@ export default function Sellers() {
   const { sellers, products, addSeller, updateSeller, deleteSeller } = useStore();
   const [search, setSearch] = useState('');
   
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [formData, setFormData] = useState({ name: '', yupooUrl: '', description: '' });
 
-  // Delete Confirmation State
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const filteredSellers = sellers.filter(s => 
@@ -72,7 +70,6 @@ export default function Sellers() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
         {filteredSellers.map(seller => {
-          // Rétrocompatibilité : compter les produits avec ce sellerId OU le nom en texte exact
           const productCount = products.filter(p => p.sellerId === seller.id || (p.seller && p.seller.toLowerCase() === seller.name.toLowerCase())).length;
 
           return (
@@ -88,7 +85,6 @@ export default function Sellers() {
                   </div>
                 </Link>
                 
-                {/* Menu d'actions simplifié pour l'exemple (icônes directes) */}
                 <div className="flex gap-2">
                   <button onClick={() => openModal(seller)} className="p-1.5 text-muted hover:text-primary"><Edit size={16}/></button>
                   <button onClick={() => setDeletingId(seller.id)} className="p-1.5 text-muted hover:text-danger"><Trash2 size={16}/></button>
@@ -106,7 +102,6 @@ export default function Sellers() {
         })}
       </div>
 
-      {/* Modal Ajout/Édition */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-surface border border-border rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
@@ -136,7 +131,6 @@ export default function Sellers() {
         </div>
       )}
 
-      {/* Modal Suppression */}
       {deletingId && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-surface border border-border rounded-2xl w-full max-w-sm p-6 text-center">
