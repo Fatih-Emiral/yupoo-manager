@@ -18,7 +18,6 @@ export default function Import() {
   const [mainImage, setMainImage] = useState('');
   const [fetchedImages, setFetchedImages] = useState<string[]>([]);
   
-  // États pour le Drag & Drop
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -70,21 +69,50 @@ export default function Import() {
     }
   };
 
-  // --- LOGIQUE DRAG & DROP ---
+  // --- LOGIQUE DE COMPRESSION AUTOMATIQUE DES IMAGES ---
   const processFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
       setError('Le fichier déposé doit être une image.');
       return;
     }
     setError('');
+    
     const reader = new FileReader();
     reader.onload = (e) => {
-      const base64 = e.target?.result as string;
-      setMainImage(base64);
-      setFetchedImages(prev => {
-        if (!prev.includes(base64)) return [base64, ...prev];
-        return prev;
-      });
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800; // Limite la taille pour ne pas saturer le stockage
+        
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          // Fond blanc au cas où on dépose un PNG transparent
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+        }
+        
+        // Force la conversion en JPEG léger (80% de qualité)
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+        
+        setMainImage(compressedBase64);
+        setFetchedImages(prev => {
+          if (!prev.includes(compressedBase64)) return [compressedBase64, ...prev];
+          return prev;
+        });
+      };
+      img.src = e.target?.result as string;
     };
     reader.readAsDataURL(file);
   };
@@ -115,31 +143,35 @@ export default function Import() {
   // -----------------------------
 
   const handleSave = async () => {
-    if (!name || (!url && !mainImage)) {
-      setError('Un nom et un lien (ou une image) sont obligatoires.');
+    if (!name) {
+      setError('Le nom du produit est obligatoire.');
       return;
     }
 
-    await addProduct({
-      id: Date.now().toString(),
-      name,
-      category: category as any,
-      seller: '',
-      sellerId: sellerId || undefined,
-      yupooUrl: url || '#', // Fallback si ajout purement manuel
-      mainImage,
-      images: fetchedImages,
-      priceCny: Number(priceCny) || 0,
-      priceEur: Number(((Number(priceCny) || 0) / settings.exchangeRate).toFixed(2)),
-      description: '',
-      favorite: false,
-      createdAt: Date.now(),
-      resalePrice: 0,
-      shippingCost: 0,
-      otherCosts: 0
-    });
-
-    navigate('/catalog');
+    try {
+      await addProduct({
+        id: Date.now().toString(),
+        name,
+        category: category as any,
+        seller: '',
+        sellerId: sellerId || undefined,
+        yupooUrl: url || '#', 
+        mainImage,
+        images: fetchedImages,
+        priceCny: Number(priceCny) || 0,
+        priceEur: Number(((Number(priceCny) || 0) / settings.exchangeRate).toFixed(2)),
+        description: '',
+        favorite: false,
+        createdAt: Date.now(),
+        resalePrice: 0,
+        shippingCost: 0,
+        otherCosts: 0
+      });
+      navigate('/catalog');
+    } catch (err) {
+      console.error(err);
+      setError("Erreur : la mémoire est pleine. Essayez de vider la corbeille pour libérer de l'espace.");
+    }
   };
 
   return (
@@ -151,7 +183,6 @@ export default function Import() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Colonne Formulaire */}
         <div className="lg:col-span-7 space-y-6">
           <div className="bg-surface border border-border rounded-2xl p-6">
             <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><LinkIcon size={20} className="text-accent" /> 1. Lien du produit</h2>
@@ -224,7 +255,6 @@ export default function Import() {
           </div>
         </div>
 
-        {/* Colonne Images / Dropzone */}
         <div className="lg:col-span-5">
           <div className="bg-surface border border-border rounded-2xl p-6 h-full min-h-[400px] flex flex-col">
             <h2 className="text-lg font-bold mb-4 flex justify-between items-center">
