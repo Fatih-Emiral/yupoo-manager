@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useStore } from '../store/useStore';
-import { Link as LinkIcon, Image as ImageIcon, AlertCircle, Plus, Loader2, Store } from 'lucide-react';
+import { Link as LinkIcon, Image as ImageIcon, AlertCircle, Plus, Loader2, Store, UploadCloud } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Import() {
@@ -14,11 +14,14 @@ export default function Import() {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Autre');
   const [priceCny, setPriceCny] = useState<number | ''>('');
-  const [sellerId, setSellerId] = useState(''); // Nouveau système de revendeur
+  const [sellerId, setSellerId] = useState('');
   const [mainImage, setMainImage] = useState('');
   const [fetchedImages, setFetchedImages] = useState<string[]>([]);
+  
+  // États pour le Drag & Drop
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Liste des catégories
   const categories = ['T-shirt', 'Pull', 'Manteau', 'Jean', 'Jogging', 'Short', 'Chaussure', 'Bijou', 'Montre', 'Autre'];
 
   const handleExtract = async (e: React.FormEvent) => {
@@ -32,7 +35,6 @@ export default function Import() {
     setError('');
 
     try {
-      // Utilisation d'un Proxy CORS public (AllOrigins) pour contourner la protection Yupoo
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
       const response = await fetch(proxyUrl);
       const data = await response.json();
@@ -40,12 +42,10 @@ export default function Import() {
       const parser = new DOMParser();
       const doc = parser.parseFromString(data.contents, 'text/html');
 
-      // Extraction du titre
       const titleEl = doc.querySelector('.showalbumheader__gallerytitle');
       const fetchedTitle = titleEl ? titleEl.textContent?.trim() : doc.title;
       if (fetchedTitle) setName(fetchedTitle);
 
-      // Extraction des images
       const imgEls = doc.querySelectorAll('img[data-origin-src], .showalbum__children img, .image__img');
       const images: string[] = [];
       
@@ -61,25 +61,72 @@ export default function Import() {
         setMainImage(images[0]);
         setFetchedImages(images);
       } else {
-        setError('Aucune image trouvée sur cette page.');
+        setError('Aucune image trouvée. Vous pouvez en glisser-déposer une manuellement.');
       }
     } catch (err) {
-      setError('Impossible d\'extraire les données automatiquement (Protection Yupoo). Veuillez remplir manuellement.');
+      setError('Impossible d\'extraire les données automatiquement. Veuillez remplir manuellement.');
     } finally {
       setLoading(false);
     }
   };
 
+  // --- LOGIQUE DRAG & DROP ---
+  const processFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setError('Le fichier déposé doit être une image.');
+      return;
+    }
+    setError('');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      setMainImage(base64);
+      setFetchedImages(prev => {
+        if (!prev.includes(base64)) return [base64, ...prev];
+        return prev;
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      processFile(e.target.files[0]);
+    }
+  };
+  // -----------------------------
+
   const handleSave = async () => {
-    if (!name || !url) return;
+    if (!name || (!url && !mainImage)) {
+      setError('Un nom et un lien (ou une image) sont obligatoires.');
+      return;
+    }
 
     await addProduct({
       id: Date.now().toString(),
       name,
       category: category as any,
-      seller: '', // On laisse vide pour utiliser sellerId
+      seller: '',
       sellerId: sellerId || undefined,
-      yupooUrl: url,
+      yupooUrl: url || '#', // Fallback si ajout purement manuel
       mainImage,
       images: fetchedImages,
       priceCny: Number(priceCny) || 0,
@@ -104,9 +151,8 @@ export default function Import() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Colonne Formulaire (Gauche) */}
+        {/* Colonne Formulaire */}
         <div className="lg:col-span-7 space-y-6">
-          {/* Étape 1 : Le lien */}
           <div className="bg-surface border border-border rounded-2xl p-6">
             <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><LinkIcon size={20} className="text-accent" /> 1. Lien du produit</h2>
             <form onSubmit={handleExtract} className="flex flex-col sm:flex-row gap-3">
@@ -116,7 +162,6 @@ export default function Import() {
                 onChange={(e) => setUrl(e.target.value)} 
                 placeholder="https://vendeur.x.yupoo.com/albums/..." 
                 className="flex-1 h-12 bg-background border border-border rounded-xl px-4 text-primary focus:border-accent outline-none"
-                required
               />
               <button 
                 type="submit" 
@@ -128,7 +173,6 @@ export default function Import() {
             </form>
           </div>
 
-          {/* Étape 2 : Informations */}
           <div className="bg-surface border border-border rounded-2xl p-6">
             <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><ImageIcon size={20} className="text-accent" /> 2. Informations</h2>
             
@@ -173,40 +217,61 @@ export default function Import() {
 
             <div className="mt-8 pt-6 border-t border-border flex justify-end gap-3">
               <button onClick={() => navigate('/catalog')} className="px-6 py-2.5 rounded-xl border border-border hover:bg-surface-hover transition-colors font-medium">Annuler</button>
-              <button onClick={handleSave} disabled={!name || !url} className="px-6 py-2.5 bg-accent hover:bg-accent-hover text-white rounded-xl transition-colors font-medium disabled:opacity-50 flex items-center gap-2">
+              <button onClick={handleSave} disabled={!name} className="px-6 py-2.5 bg-accent hover:bg-accent-hover text-white rounded-xl transition-colors font-medium disabled:opacity-50 flex items-center gap-2">
                 <Plus size={18} /> Ajouter au catalogue
               </button>
             </div>
           </div>
         </div>
 
-        {/* Colonne Images (Droite) */}
+        {/* Colonne Images / Dropzone */}
         <div className="lg:col-span-5">
           <div className="bg-surface border border-border rounded-2xl p-6 h-full min-h-[400px] flex flex-col">
-            <h2 className="text-lg font-bold mb-4">Photos récupérées ({fetchedImages.length})</h2>
+            <h2 className="text-lg font-bold mb-4 flex justify-between items-center">
+              <span>Photos ({fetchedImages.length})</span>
+              <button onClick={() => fileInputRef.current?.click()} className="text-xs font-medium text-accent hover:text-accent-hover flex items-center gap-1">
+                <UploadCloud size={14} /> Ajouter manuellement
+              </button>
+            </h2>
             
-            {mainImage ? (
-              <div className="space-y-4">
-                <div className="aspect-[4/3] rounded-xl overflow-hidden bg-background border border-border relative">
+            <input 
+              type="file" 
+              accept="image/*" 
+              className="hidden" 
+              ref={fileInputRef} 
+              onChange={handleFileInput} 
+            />
+
+            <div 
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`flex-1 flex flex-col items-center justify-center rounded-xl border-2 transition-all cursor-pointer overflow-hidden relative ${isDragging ? 'border-accent bg-accent/10 border-solid' : mainImage ? 'border-transparent bg-background' : 'border-dashed border-border bg-background/50 hover:bg-surface-hover'}`}
+              onClick={() => !mainImage && fileInputRef.current?.click()}
+            >
+              {mainImage ? (
+                <div className="w-full h-full absolute inset-0">
                   <img src={mainImage} alt="Principale" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
-                  <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium text-white border border-white/10">Image principale</div>
-                </div>
-                
-                {fetchedImages.length > 1 && (
-                  <div className="grid grid-cols-4 gap-2">
-                    {fetchedImages.slice(0, 8).map((img, idx) => (
-                      <button key={idx} onClick={() => setMainImage(img)} className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${mainImage === img ? 'border-accent' : 'border-transparent opacity-60 hover:opacity-100'}`}>
-                        <img src={img} referrerPolicy="no-referrer" alt={`Miniature ${idx}`} className="w-full h-full object-cover" />
-                      </button>
-                    ))}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                    <p className="text-white font-medium flex items-center gap-2"><UploadCloud size={20}/> Changer l'image</p>
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-muted border-2 border-dashed border-border rounded-xl bg-background/50">
-                <ImageIcon size={48} className="opacity-20 mb-4" />
-                <p className="text-sm">Aucune image récupérée.</p>
-                <p className="text-xs opacity-70 mt-1 text-center px-4">Ajoutez un lien valide et cliquez sur Extraire.</p>
+                </div>
+              ) : (
+                <div className="text-center p-6 text-muted pointer-events-none">
+                  <UploadCloud size={48} className={`mx-auto mb-4 transition-colors ${isDragging ? 'text-accent' : 'opacity-30'}`} />
+                  <p className="font-medium text-sm text-primary mb-1">Glissez-déposez une image ici</p>
+                  <p className="text-xs opacity-70">ou cliquez pour parcourir vos fichiers</p>
+                </div>
+              )}
+            </div>
+            
+            {fetchedImages.length > 1 && (
+              <div className="grid grid-cols-5 gap-2 mt-4 pt-4 border-t border-border">
+                {fetchedImages.map((img, idx) => (
+                  <button key={idx} onClick={() => setMainImage(img)} className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${mainImage === img ? 'border-accent' : 'border-transparent opacity-60 hover:opacity-100'}`}>
+                    <img src={img} referrerPolicy="no-referrer" alt={`Miniature ${idx}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
               </div>
             )}
           </div>
