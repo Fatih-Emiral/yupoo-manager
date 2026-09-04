@@ -57,19 +57,32 @@ export default function Dashboard() {
 
       </div>
 
-      {/* Ligne 3 : Widgets */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        
+      {/* Analyse de rentabilité (Dynamique) */}
         <div className="bg-surface rounded-2xl border border-border p-6">
           <h2 className="font-bold mb-6 flex items-center gap-2">Analyse de rentabilité</h2>
-          <div className="flex items-center justify-between mt-8">
-            <div className="w-32 h-32 rounded-full border-[14px] border-background border-t-success border-r-warning border-b-danger"></div>
-            <div className="text-right">
-              <p className="text-sm text-muted">ROI moyen global</p>
-              <p className="text-4xl font-bold mt-1">42,6%</p>
-              <p className="text-success text-sm font-medium mt-1">+8,3% ce mois</p>
+          
+          {products.length === 0 ? (
+            // État vide : Aucun produit
+            <div className="flex items-center justify-between mt-8">
+              <div className="w-32 h-32 rounded-full border-[14px] border-border"></div>
+              <div className="text-right">
+                <p className="text-sm text-muted">ROI moyen global</p>
+                <p className="text-4xl font-bold mt-1 text-muted">0%</p>
+                <p className="text-muted text-sm font-medium mt-1">En attente de données</p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center justify-between mt-8">
+              <div className="w-32 h-32 rounded-full border-[14px] border-background border-t-success border-r-warning border-b-success"></div>
+              <div className="text-right">
+                <p className="text-sm text-muted">ROI moyen global</p>
+                <p className="text-4xl font-bold mt-1">
+                  {(products.reduce((acc, p) => acc + (Number(p.roi) || 0), 0) / products.length).toFixed(1)}%
+                </p>
+                <p className="text-success text-sm font-medium mt-1">Basé sur {products.length} produits</p>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="bg-surface rounded-2xl border border-border p-6">
