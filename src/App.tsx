@@ -12,6 +12,7 @@ import Settings from './pages/Settings';
 import Favorites from './pages/Favorites';
 import Sellers from './pages/Sellers';
 import SellerDetail from './pages/SellerDetail';
+import Trash from './pages/Trash';
 
 export default function App() {
   const loadProducts = useStore(state => state.loadProducts);
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="favorites" element={<Favorites />} />
           <Route path="import" element={<Import />} />
           <Route path="calculator" element={<Calculator />} />
+          <Route path="trash" element={<Trash />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
