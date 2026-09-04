@@ -9,6 +9,7 @@ import Catalog from './pages/Catalog';
 import Import from './pages/Import';
 import Calculator from './pages/Calculator';
 import Settings from './pages/Settings';
+import Favorites from './pages/Favorites';
 
 export default function App() {
   const loadProducts = useStore(state => state.loadProducts);
@@ -23,7 +24,7 @@ export default function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
           <Route path="catalog" element={<Catalog />} />
-          <Route path="favorites" element={<div>Favoris (À venir)</div>} />
+          <Route path="favorites" element={<Favorites />} />
           <Route path="import" element={<Import />} />
           <Route path="calculator" element={<Calculator />} />
           <Route path="settings" element={<Settings />} />
