@@ -4,19 +4,55 @@ import ProductCard from '../components/ui/ProductCard';
 import { Link } from 'react-router-dom';
 
 export default function Dashboard() {
-  // CORRECTION : On ne récupère que products et sellers du store
-  const { products, sellers } = useStore();
+  const { products, sellers, settings } = useStore();
 
-  // On calcule les favoris localement
   const favoriteProducts = products.filter(p => p.favorite);
-  
   const recentProducts = [...products].sort((a, b) => b.createdAt - a.createdAt).slice(0, 4);
   const favProductsList = favoriteProducts.slice(0, 4);
   
-  const topRoiProducts = [...products]
-    .filter(p => p.roi !== undefined)
-    .sort((a, b) => (b.roi || 0) - (a.roi || 0))
+  // 1. CALCUL DYNAMIQUE DU ROI POUR TOUS LES PRODUITS
+  const productsWithROI = products.map(p => {
+    const totalCost = (p.priceEur || 0) + (p.shippingCost || 0) + (p.otherCosts || 0);
+    let calculatedRoi = 0;
+    
+    // On ne calcule que si un prix de revente a été saisi
+    if (totalCost > 0 && p.resalePrice && p.resalePrice > 0) {
+       const profit = p.resalePrice - totalCost;
+       calculatedRoi = (profit / totalCost) * 100;
+    }
+    
+    return { ...p, calculatedRoi, hasData: p.resalePrice && p.resalePrice > 0 && totalCost > 0 };
+  }).filter(p => p.hasData);
+
+  // 2. MOYENNE ET CLASSEMENT
+  const avgRoi = productsWithROI.length > 0 
+    ? productsWithROI.reduce((acc, p) => acc + p.calculatedRoi, 0) / productsWithROI.length 
+    : 0;
+
+  const topRoiProducts = [...productsWithROI]
+    .sort((a, b) => b.calculatedRoi - a.calculatedRoi)
     .slice(0, 5);
+
+  // 3. SEGMENTS DU CAMEMBERT (SVG)
+  let excellentPct = 0, mediumPct = 0, lowPct = 0;
+  if (productsWithROI.length > 0) {
+    let excellentCount = 0, mediumCount = 0, lowCount = 0;
+    productsWithROI.forEach(p => {
+       if (p.calculatedRoi >= settings.roiThresholds.good) excellentCount++;
+       else if (p.calculatedRoi >= settings.roiThresholds.medium) mediumCount++;
+       else lowCount++;
+    });
+    excellentPct = (excellentCount / productsWithROI.length) * 100;
+    mediumPct = (mediumCount / productsWithROI.length) * 100;
+    lowPct = (lowCount / productsWithROI.length) * 100;
+  }
+
+  // Configuration du cercle SVG (rayon 15.9155 = circonférence de 100)
+  const excellentDasharray = `${excellentPct} 100`;
+  const mediumDasharray = `${mediumPct} 100`;
+  const mediumOffset = -excellentPct;
+  const lowDasharray = `${lowPct} 100`;
+  const lowOffset = -(excellentPct + mediumPct);
 
   const StatCard = ({ icon: Icon, label, value, subtext, colorClass, strokeClass }: any) => (
     <div className="bg-surface p-4 rounded-xl border border-border flex items-center justify-between shadow-sm">
@@ -74,30 +110,31 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        
+        {/* GRAPHIQUE ROI RÉPARÉ */}
         <div className="bg-surface rounded-xl border border-border p-4 lg:col-span-1 flex flex-col xl:flex-row gap-6">
           <div className="flex-1">
             <h2 className="font-bold mb-4 flex items-center gap-2 text-sm">Analyse de rentabilité</h2>
-            {products.length === 0 ? (
-              <div className="flex items-center gap-4 mt-2">
-                <div className="w-20 h-20 rounded-full border-[8px] border-border shrink-0"></div>
-                <div>
-                  <p className="text-xs text-muted">ROI moyen global</p>
-                  <p className="text-2xl font-bold mt-0.5 text-muted">0%</p>
-                  <p className="text-muted text-[9px] font-medium mt-0.5">En attente</p>
-                </div>
+            
+            <div className="flex items-center gap-4 mt-2">
+              {/* Vrai graphique SVG qui se remplit selon les données */}
+              <div className="relative w-20 h-20 shrink-0">
+                <svg viewBox="0 0 32 32" className="w-full h-full transform -rotate-90">
+                  <circle r="15.9155" cx="16" cy="16" fill="transparent" stroke="currentColor" className="text-border/30" strokeWidth="6" />
+                  {excellentPct > 0 && <circle r="15.9155" cx="16" cy="16" fill="transparent" stroke="#10b981" strokeWidth="6" strokeDasharray={excellentDasharray} strokeDashoffset="0" />}
+                  {mediumPct > 0 && <circle r="15.9155" cx="16" cy="16" fill="transparent" stroke="#f59e0b" strokeWidth="6" strokeDasharray={mediumDasharray} strokeDashoffset={mediumOffset} />}
+                  {lowPct > 0 && <circle r="15.9155" cx="16" cy="16" fill="transparent" stroke="#ef4444" strokeWidth="6" strokeDasharray={lowDasharray} strokeDashoffset={lowOffset} />}
+                </svg>
               </div>
-            ) : (
-              <div className="flex items-center gap-4 mt-2">
-                <div className="w-20 h-20 rounded-full border-[8px] border-background border-t-success border-r-warning border-b-success shrink-0"></div>
-                <div>
-                  <p className="text-xs text-muted">ROI moyen global</p>
-                  <p className="text-2xl font-bold mt-0.5">
-                    {(products.reduce((acc, p) => acc + (Number((p as any).roi) || 0), 0) / products.length).toFixed(1)}%
-                  </p>
-                  <p className="text-success text-[10px] font-medium mt-0.5">+{products.length} produits</p>
-                </div>
+              
+              <div>
+                <p className="text-xs text-muted">ROI moyen global</p>
+                <p className="text-2xl font-bold mt-0.5 text-primary">
+                  {productsWithROI.length === 0 ? '0%' : `${avgRoi.toFixed(1)}%`}
+                </p>
+                <p className="text-success text-[10px] font-medium mt-0.5">{productsWithROI.length} produit(s) calculé(s)</p>
               </div>
-            )}
+            </div>
           </div>
           
           <div className="flex-1 border-t xl:border-t-0 xl:border-l border-border pt-4 xl:pt-0 xl:pl-4">
@@ -106,10 +143,10 @@ export default function Dashboard() {
               {topRoiProducts.length > 0 ? topRoiProducts.map((p, idx) => (
                 <div key={p.id} className="flex justify-between items-center text-xs">
                   <span className="truncate max-w-[120px] text-primary">{idx + 1}. {p.name}</span>
-                  <span className="font-medium text-success">{p.roi}%</span>
+                  <span className="font-medium text-success">+{p.calculatedRoi.toFixed(1)}%</span>
                 </div>
               )) : (
-                <div className="text-xs text-muted">Aucune donnée ROI calculée.</div>
+                <div className="text-xs text-muted leading-tight">Aucune donnée ROI calculée. Entrez des prix de revente dans le calculateur.</div>
               )}
             </div>
           </div>
