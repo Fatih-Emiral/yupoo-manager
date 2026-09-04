@@ -1,5 +1,6 @@
-import { Star, Clock, Store, MoreHorizontal } from 'lucide-react';
+import { Star, Clock, Store, MoreHorizontal, Trash2 } from 'lucide-react';
 import type { Product } from '../../types';
+import { useStore } from '../../store/useStore';
 
 interface Props {
   product: Product;
@@ -9,14 +10,14 @@ interface Props {
 }
 
 export default function ProductCard({ product, onClick, onToggleFavorite, compact = false }: Props) {
+  const { deleteProduct } = useStore();
+
   return (
     <article 
-      // Correction 1 : On vérifie que onClick existe avant de l'appeler
       onClick={() => onClick && onClick(product)}
       className="group cursor-pointer bg-saas-card rounded-2xl overflow-hidden border border-saas-border hover:border-saas-primary/50 transition-all duration-300 flex flex-col shadow-lg shadow-black/20"
     >
       {/* Zone Image */}
-      {/* Correction 2 : On utilise 'compact' pour changer la taille de l'image si besoin */}
       <div className={`${compact ? 'aspect-[4/3]' : 'aspect-square'} bg-[#111113] relative overflow-hidden`}>
         {product.mainImage ? (
           <img 
@@ -29,14 +30,27 @@ export default function ProductCard({ product, onClick, onToggleFavorite, compac
           <div className="w-full h-full flex items-center justify-center text-saas-textMuted text-sm">Image indisponible</div>
         )}
         
-        {/* Menu 3 points (Décoratif, utilise l'icône importée) */}
-        <div className="absolute top-2 right-12 p-1.5 bg-black/50 backdrop-blur rounded-md text-white opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Bouton Supprimer (Top Left, visible au survol) */}
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            if (window.confirm('Déplacer ce produit vers la corbeille ?')) {
+              deleteProduct(product.id);
+            }
+          }}
+          className="absolute top-3 left-3 p-2 bg-black/60 backdrop-blur-md rounded-lg hover:bg-red-500/80 border border-white/10 text-white transition-all z-10 md:opacity-0 group-hover:opacity-100"
+          title="Mettre à la corbeille"
+        >
+          <Trash2 size={16} />
+        </button>
+
+        {/* Menu 3 points (Décoratif) */}
+        <div className="absolute top-2 right-12 p-1.5 bg-black/50 backdrop-blur rounded-md text-white opacity-0 group-hover:opacity-100 transition-opacity hidden md:block">
           <MoreHorizontal size={14} />
         </div>
         
         {/* Bouton Favori (Top Right) */}
         <button 
-          // Correction 3 : On vérifie que onToggleFavorite existe
           onClick={(e) => onToggleFavorite && onToggleFavorite(product.id, e)}
           className="absolute top-3 right-3 p-2 bg-black/60 backdrop-blur-md rounded-lg hover:bg-black/80 border border-white/10 transition-colors z-10"
         >
@@ -57,7 +71,6 @@ export default function ProductCard({ product, onClick, onToggleFavorite, compac
           <span className="text-xs text-saas-textMuted font-medium leading-none">≈ {product.priceEur} €</span>
         </div>
         
-        {/* Correction 4 : L'icône Store est maintenant correctement importée */}
         <div className="mt-auto pt-3 border-t border-saas-border flex items-center justify-between text-xs text-saas-textMuted">
           <span className="flex items-center gap-1 truncate max-w-[60%]"><Store size={12}/> {product.seller || 'Inconnu'}</span>
           <span className="flex items-center gap-1"><Clock size={12}/> Il y a peu</span>

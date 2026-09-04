@@ -1,4 +1,4 @@
-import { X, ExternalLink, Calculator, Star, CheckCircle2 } from 'lucide-react';
+import { X, ExternalLink, Calculator, Star, CheckCircle2, Trash2 } from 'lucide-react';
 import type { Product } from '../../types';
 import { calculateTotalCost, calculateProfit, calculateROI } from '../../core/calculator';
 import { useStore } from '../../store/useStore';
@@ -10,7 +10,7 @@ interface Props {
 }
 
 export default function ProductModal({ product, onClose }: Props) {
-  const { toggleFavorite } = useStore();
+  const { toggleFavorite, deleteProduct } = useStore();
   const totalCost = calculateTotalCost(product.priceEur, product.shippingCost || 0, product.otherCosts || 0);
   const profit = calculateProfit(product.resalePrice || 0, totalCost);
   const roi = calculateROI(profit, totalCost);
@@ -66,8 +66,22 @@ export default function ProductModal({ product, onClose }: Props) {
             <a href={product.yupooUrl} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors">
               <ExternalLink size={18} /> Voir sur Yupoo
             </a>
-            <button onClick={() => toggleFavorite(product.id)} className={`p-3 rounded-xl border transition-colors flex items-center justify-center ${product.favorite ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500' : 'bg-dark-800 border-dark-700 text-dark-400 hover:text-white'}`}>
+            
+            <button onClick={() => toggleFavorite(product.id)} className={`p-3 rounded-xl border transition-colors flex items-center justify-center ${product.favorite ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500' : 'bg-dark-800 border-dark-700 text-dark-400 hover:text-white'}`} title="Favori">
               <Star size={20} className={product.favorite ? "fill-yellow-500" : ""} />
+            </button>
+            
+            <button 
+              onClick={() => {
+                if (window.confirm('Déplacer ce produit vers la corbeille ?')) {
+                  deleteProduct(product.id);
+                  onClose();
+                }
+              }} 
+              className="p-3 rounded-xl border border-dark-700 bg-dark-800 text-dark-400 hover:text-red-500 hover:border-red-500/50 hover:bg-red-500/10 transition-colors flex items-center justify-center" 
+              title="Mettre à la corbeille"
+            >
+              <Trash2 size={20} />
             </button>
           </div>
 
