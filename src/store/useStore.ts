@@ -13,9 +13,40 @@ interface StoreState {
   toggleFavorite: (id: string) => Promise<void>;
   setExchangeRate: (rate: number) => void;
   updateSettings: (newSettings: Partial<AppSettings>) => void;
+  sellers: Seller[];
+  addSeller: (seller: Seller) => Promise<void>;
+  updateSeller: (seller: Seller) => Promise<void>;
+  deleteSeller: (id: string) => Promise<void>;
+  loadSellers: () => Promise<void>;
 }
 
 export const useStore = create<StoreState>((set, get) => ({
+  sellers: [],
+  addSeller: async (seller) => {
+    set((state) => {
+      const newSellers = [...state.sellers, seller];
+      localStorage.setItem('yupoomgr_sellers', JSON.stringify(newSellers));
+      return { sellers: newSellers };
+    });
+  },
+  updateSeller: async (seller) => {
+    set((state) => {
+      const newSellers = state.sellers.map(s => s.id === seller.id ? seller : s);
+      localStorage.setItem('yupoomgr_sellers', JSON.stringify(newSellers));
+      return { sellers: newSellers };
+    });
+  },
+  deleteSeller: async (id) => {
+    set((state) => {
+      const newSellers = state.sellers.filter(s => s.id !== id);
+      localStorage.setItem('yupoomgr_sellers', JSON.stringify(newSellers));
+      return { sellers: newSellers };
+    });
+  },
+  loadSellers: async () => {
+    const data = localStorage.getItem('yupoomgr_sellers');
+    if (data) set({ sellers: JSON.parse(data) });
+  },
   products: [],
   settings: { 
     exchangeRate: 7.8,

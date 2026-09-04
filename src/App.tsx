@@ -10,6 +10,8 @@ import Import from './pages/Import';
 import Calculator from './pages/Calculator';
 import Settings from './pages/Settings';
 import Favorites from './pages/Favorites';
+import Sellers from './pages/Sellers';
+import SellerDetail from './pages/SellerDetail';
 
 export default function App() {
   const loadProducts = useStore(state => state.loadProducts);
@@ -28,6 +30,8 @@ export default function App() {
           <Route path="import" element={<Import />} />
           <Route path="calculator" element={<Calculator />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="sellers" element={<Sellers />} />
+          <Route path="sellers/:id" element={<SellerDetail />} />
         </Route>
       </Routes>
     </HashRouter>

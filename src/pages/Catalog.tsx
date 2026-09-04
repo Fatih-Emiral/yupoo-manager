@@ -17,25 +17,51 @@ export default function Catalog() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   const categories = ['ALL', ...Array.from(new Set(products.map(p => p.category)))];
-  const sellers = ['ALL', ...Array.from(new Set(products.map(p => p.seller).filter(Boolean)))];
-
+  
+  // Combinaison des vendeurs officiels (nouveau système) et des anciens noms
+  const officialSellers = useStore(state => state.sellers);
+  const legacySellers = Array.from(new Set(products.map(p => p.seller).filter(Boolean)));
+  const combinedSellers = ['ALL', ...Array.from(new Set([...officialSellers.map(s => s.name), ...legacySellers]))];
+  
   const filteredProducts = useMemo(() => {
     let result = [...products];
+    
     if (search) {
       const s = search.toLowerCase();
-      result = result.filter(p => p.name.toLowerCase().includes(s) || p.seller.toLowerCase().includes(s));
+      result = result.filter(p => {
+        const sellerName = p.sellerId 
+          ? officialSellers.find(seller => seller.id === p.sellerId)?.name || p.seller 
+          : p.seller;
+        return p.name.toLowerCase().includes(s) || (sellerName && sellerName.toLowerCase().includes(s));
+      });
     }
-    if (categoryFilter !== 'ALL') result = result.filter(p => p.category === categoryFilter);
-    if (sellerFilter !== 'ALL') result = result.filter(p => p.seller === sellerFilter);
-    if (showFavoritesOnly) result = result.filter(p => p.favorite);
+    
+    if (categoryFilter !== 'ALL') {
+      result = result.filter(p => p.category === categoryFilter);
+    }
+    
+    if (sellerFilter !== 'ALL') {
+      result = result.filter(p => {
+        const sellerName = p.sellerId 
+          ? officialSellers.find(seller => seller.id === p.sellerId)?.name || p.seller 
+          : p.seller;
+        return sellerName === sellerFilter;
+      });
+    }
+    
+    if (showFavoritesOnly) {
+      result = result.filter(p => p.favorite);
+    }
+    
     result.sort((a, b) => {
       if (sortBy === 'NEWEST') return b.createdAt - a.createdAt;
       if (sortBy === 'PRICE_ASC') return a.priceCny - b.priceCny;
       if (sortBy === 'PRICE_DESC') return b.priceCny - a.priceCny;
       return 0;
     });
+    
     return result;
-  }, [products, search, categoryFilter, sellerFilter, showFavoritesOnly, sortBy]);
+  }, [products, search, categoryFilter, sellerFilter, showFavoritesOnly, sortBy, officialSellers]);
 
   const handleToggleFavorite = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -47,7 +73,7 @@ export default function Catalog() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-3 md:gap-4 hidden md:flex">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Catalogue</h1>
-          <p className="text-dark-400 mt-1">{filteredProducts.length} produit(s) trouvé(s)</p>
+          <p className="text-muted mt-1">{filteredProducts.length} produit(s) trouvé(s)</p>
         </div>
       </div>
 
@@ -58,7 +84,7 @@ export default function Catalog() {
           placeholder="Rechercher un produit, un vendeur..." 
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full h-12 md:h-14 bg-surface border border-border rounded-xl pl-12 pr-4 py-3 text-sm md:text-base text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all placeholder:text-muted"
+          className="w-full h-12 md:h-14 bg-surface border border-border rounded-xl pl-12 pr-4 py-3 text-sm md:text-base text-primary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all placeholder:text-muted"
         />
       </div>
 
@@ -71,7 +97,7 @@ export default function Catalog() {
 
         <select value={sellerFilter} onChange={e => setSellerFilter(e.target.value)} className="whitespace-nowrap flex-shrink-0 bg-surface md:bg-background border border-border text-sm rounded-lg px-3 py-2.5 h-10 md:h-auto text-primary focus:outline-none focus:border-accent">
           <option value="ALL">Vendeurs</option>
-          {sellers.filter(s => s !== 'ALL').map(s => <option key={s} value={s}>{s}</option>)}
+          {combinedSellers.filter(s => s !== 'ALL').map(s => <option key={s} value={s}>{s}</option>)}
         </select>
 
         <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="whitespace-nowrap flex-shrink-0 bg-surface md:bg-background border border-border text-sm rounded-lg px-3 py-2.5 h-10 md:h-auto text-primary focus:outline-none focus:border-accent">
