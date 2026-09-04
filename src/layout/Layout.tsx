@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Grid, Star, Link as LinkIcon, Calculator, Settings, Plus, Hexagon, ArrowLeftToLine, Store } from 'lucide-react';
+import { LayoutDashboard, Grid, Star, Link as LinkIcon, Calculator, Settings, Plus, Hexagon, ArrowLeftToLine, Store, Trash2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
 export default function Layout() {
@@ -13,6 +13,7 @@ export default function Layout() {
     { path: '/favorites', icon: Star, label: 'Favoris' },
     { path: '/import', icon: LinkIcon, label: 'Importer' },
     { path: '/calculator', icon: Calculator, label: 'Calculateur' },
+    { path: '/trash', icon: Trash2, label: 'Corbeille' },
     { path: '/settings', icon: Settings, label: 'Paramètres' },
   ];
 
@@ -21,7 +22,6 @@ export default function Layout() {
   return (
     <div className="flex h-[100dvh] bg-background text-primary font-sans overflow-hidden">
       
-      {/* SIDEBAR UNIQUE DESKTOP (Masquée sur mobile) */}
       <aside className="hidden md:flex w-[260px] bg-surface border-r border-border flex-col z-20">
         <div className="h-20 flex items-center px-6 border-b border-border/50">
           <Link to="/" className="flex items-center gap-3">
@@ -71,10 +71,8 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* CONTENU PRINCIPAL */}
       <div className="flex-1 flex flex-col min-w-0 relative">
         
-        {/* HEADER DESKTOP (Masqué sur mobile) */}
         <header className="hidden md:flex h-20 items-center justify-between px-8 bg-background z-10 sticky top-0">
           <div>
             <h1 className="text-2xl font-bold">{getPageTitle()}</h1>
@@ -88,7 +86,6 @@ export default function Layout() {
           </div>
         </header>
 
-        {/* HEADER MOBILE (Spécifique iPhone) */}
         <header className="flex md:hidden items-center justify-between px-4 py-3 bg-surface border-b border-border pt-[max(0.75rem,env(safe-area-inset-top))] sticky top-0 z-10">
           <div className="flex items-center gap-2 text-accent">
             <Hexagon size={24} fill="currentColor" />
@@ -102,17 +99,14 @@ export default function Layout() {
           </div>
         </header>
 
-        {/* ZONE DE CONTENU */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8 scroll-smooth-ios" id="main-content">
           <Outlet />
         </main>
-
       </div>
 
-      {/* BOTTOM NAVIGATION MOBILE (Masquée sur desktop) */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-md border-t border-border pb-[env(safe-area-inset-bottom)] z-50">
         <div className="flex justify-around items-center h-16 px-1">
-          {navItems.filter(i => i.path !== '/import' && i.path !== '/settings').map((item) => {
+          {navItems.filter(i => i.path !== '/import' && i.path !== '/settings' && i.path !== '/trash').map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path || (location.pathname.startsWith('/sellers') && item.path === '/sellers');
             return (

@@ -2,22 +2,22 @@ import { create } from 'zustand';
 import type { Product, AppSettings, Seller } from '../types';
 
 interface StoreState {
-  // Données
   products: Product[];
+  trashedProducts: Product[];
   settings: AppSettings;
   sellers: Seller[];
   
-  // Actions Produits
   loadProducts: () => Promise<void>;
   addProduct: (product: Product) => Promise<void>;
   updateProduct: (product: Product) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
+  restoreProduct: (id: string) => Promise<void>;
+  hardDeleteProduct: (id: string) => Promise<void>;
+  emptyTrash: () => Promise<void>;
   toggleFavorite: (id: string) => void;
   
-  // Actions Paramètres
   updateSettings: (settings: AppSettings) => Promise<void>;
 
-  // Actions Revendeurs
   loadSellers: () => Promise<void>;
   addSeller: (seller: Seller) => Promise<void>;
   updateSeller: (seller: Seller) => Promise<void>;
@@ -26,16 +26,18 @@ interface StoreState {
 
 export const useStore = create<StoreState>((set) => ({
   products: [],
+  trashedProducts: [],
   settings: {
     exchangeRate: 7.8,
     roiThresholds: { medium: 20, good: 40, excellent: 60 }
   },
   sellers: [],
 
-  // --- PRODUITS ---
   loadProducts: async () => {
     const data = localStorage.getItem('yupoomgr_products');
+    const trashData = localStorage.getItem('yupoomgr_trashed_products');
     if (data) set({ products: JSON.parse(data) });
+    if (trashData) set({ trashedProducts: JSON.parse(trashData) });
   },
   
   addProduct: async (product) => {
@@ -54,11 +56,47 @@ export const useStore = create<StoreState>((set) => ({
     });
   },
   
+  // Envoi vers la corbeille au lieu de supprimer définitivement
   deleteProduct: async (id) => {
     set((state) => {
+      const productToTrash = state.products.find(p => p.id === id);
+      if (!productToTrash) return state;
+      
       const newProducts = state.products.filter(p => p.id !== id);
+      const newTrashed = [productToTrash, ...state.trashedProducts];
+      
       localStorage.setItem('yupoomgr_products', JSON.stringify(newProducts));
-      return { products: newProducts };
+      localStorage.setItem('yupoomgr_trashed_products', JSON.stringify(newTrashed));
+      return { products: newProducts, trashedProducts: newTrashed };
+    });
+  },
+
+  restoreProduct: async (id) => {
+    set((state) => {
+      const productToRestore = state.trashedProducts.find(p => p.id === id);
+      if (!productToRestore) return state;
+      
+      const newTrashed = state.trashedProducts.filter(p => p.id !== id);
+      const newProducts = [productToRestore, ...state.products];
+      
+      localStorage.setItem('yupoomgr_trashed_products', JSON.stringify(newTrashed));
+      localStorage.setItem('yupoomgr_products', JSON.stringify(newProducts));
+      return { trashedProducts: newTrashed, products: newProducts };
+    });
+  },
+
+  hardDeleteProduct: async (id) => {
+    set((state) => {
+      const newTrashed = state.trashedProducts.filter(p => p.id !== id);
+      localStorage.setItem('yupoomgr_trashed_products', JSON.stringify(newTrashed));
+      return { trashedProducts: newTrashed };
+    });
+  },
+
+  emptyTrash: async () => {
+    set(() => {
+      localStorage.setItem('yupoomgr_trashed_products', JSON.stringify([]));
+      return { trashedProducts: [] };
     });
   },
   
@@ -70,15 +108,8 @@ export const useStore = create<StoreState>((set) => ({
     });
   },
 
-  // --- PARAMÈTRES ---
-  updateSettings: async (settings) => {
-    set(() => {
-      // Si tu sauvegardes tes paramètres en local, on peut le rajouter ici
-      return { settings };
-    });
-  },
+  updateSettings: async (settings) => set(() => ({ settings })),
 
-  // --- REVENDEURS ---
   addSeller: async (seller) => {
     set((state) => {
       const newSellers = [...state.sellers, seller];
