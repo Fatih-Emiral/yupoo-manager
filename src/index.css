@@ -45,3 +45,18 @@
 ::-webkit-scrollbar-thumb:hover {
   background-color: var(--text-muted);
 }
+@layer utilities {
+  /* Masquer la scrollbar pour les filtres horizontaux sur mobile */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  /* Permet au scroll d'être plus fluide sur iOS */
+  .scroll-smooth-ios {
+    -webkit-overflow-scrolling: touch;
+  }
+}
