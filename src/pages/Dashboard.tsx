@@ -4,8 +4,12 @@ import ProductCard from '../components/ui/ProductCard';
 import { Link } from 'react-router-dom';
 
 export default function Dashboard() {
-  const { products, favoriteProducts, sellers } = useStore();
+  // CORRECTION : On ne récupère que products et sellers du store
+  const { products, sellers } = useStore();
 
+  // On calcule les favoris localement
+  const favoriteProducts = products.filter(p => p.favorite);
+  
   const recentProducts = [...products].sort((a, b) => b.createdAt - a.createdAt).slice(0, 4);
   const favProductsList = favoriteProducts.slice(0, 4);
   
@@ -26,7 +30,6 @@ export default function Dashboard() {
           <p className="text-[10px] text-success mt-0.5 flex items-center gap-0.5">↗ {subtext}</p>
         </div>
       </div>
-      {/* Mini graphique décoratif fidèle à la référence */}
       <svg className={`w-12 h-6 ${strokeClass}`} viewBox="0 0 50 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="0,15 15,5 25,10 40,0 50,5"></polyline>
       </svg>
@@ -41,7 +44,6 @@ export default function Dashboard() {
         <p className="text-xs text-muted mt-0.5">Aperçu général de votre catalogue</p>
       </div>
       
-      {/* Ligne 1 : Statistiques ultra-compactes */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <StatCard icon={Package} label="Produits" value={products.length} subtext="+12 ce mois" colorClass="bg-accent/10 text-accent" strokeClass="text-accent" />
         <StatCard icon={Star} label="Favoris" value={favoriteProducts.length} subtext="+5 ce mois" colorClass="bg-success/10 text-success" strokeClass="text-success" />
@@ -49,9 +51,7 @@ export default function Dashboard() {
         <StatCard icon={Users} label="Vendeurs" value={sellers.length} subtext="+2 ce mois" colorClass="bg-blue-500/10 text-blue-500" strokeClass="text-blue-500" />
       </div>
 
-      {/* Ligne 2 : Grilles de produits (Espacements réduits p-4) */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        
         <div className="xl:col-span-2 bg-surface rounded-xl border border-border p-4">
           <div className="flex justify-between items-center mb-4">
             <h2 className="font-bold flex items-center gap-2 text-sm"><Package size={16} className="text-accent"/> Ajouts récents</h2>
@@ -71,13 +71,9 @@ export default function Dashboard() {
             {favProductsList.map(p => <ProductCard key={p.id} product={p} compact />)}
           </div>
         </div>
-
       </div>
 
-      {/* Ligne 3 : Analyse enrichie avec la liste Top Produits */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        
-        {/* Analyse ROI + Top Produits */}
         <div className="bg-surface rounded-xl border border-border p-4 lg:col-span-1 flex flex-col xl:flex-row gap-6">
           <div className="flex-1">
             <h2 className="font-bold mb-4 flex items-center gap-2 text-sm">Analyse de rentabilité</h2>
@@ -104,7 +100,6 @@ export default function Dashboard() {
             )}
           </div>
           
-          {/* Liste Top ROI inspirée de la référence */}
           <div className="flex-1 border-t xl:border-t-0 xl:border-l border-border pt-4 xl:pt-0 xl:pl-4">
             <h3 className="text-xs font-semibold text-muted mb-3">Top produits (ROI)</h3>
             <div className="space-y-2.5">
@@ -120,7 +115,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Activité */}
         <div className="bg-surface rounded-xl border border-border p-4">
            <div className="flex justify-between items-center mb-4">
              <h2 className="font-bold text-sm">Activité récente</h2>
@@ -145,7 +139,6 @@ export default function Dashboard() {
            </div>
         </div>
 
-        {/* Raccourcis compacts */}
         <div className="bg-surface rounded-xl border border-border p-4">
           <h2 className="font-bold mb-4 text-sm">Raccourcis</h2>
           <div className="space-y-2">

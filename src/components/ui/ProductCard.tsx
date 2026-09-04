@@ -1,18 +1,19 @@
+import React from 'react';
 import { Star, Clock, Store, MoreHorizontal, Trash2 } from 'lucide-react';
 import type { Product } from '../../types';
 import { useStore } from '../../store/useStore';
 
-interface Props {
+// CORRECTION : L'interface est bien déclarée pour retirer l'avertissement jaune
+export interface ProductCardProps {
   product: Product;
   onClick?: (product: Product) => void;
   onToggleFavorite?: (id: string, e: React.MouseEvent) => void;
   compact?: boolean;
 }
 
-export default function ProductCard({ product, onClick, onToggleFavorite, compact = false }: Props) {
+export default function ProductCard({ product, onClick, onToggleFavorite, compact = false }: ProductCardProps) {
   const { deleteProduct, sellers } = useStore();
   
-  // Rétrocompatibilité nom de vendeur
   const sellerName = product.sellerId 
     ? sellers.find(s => s.id === product.sellerId)?.name || product.seller 
     : product.seller;
@@ -22,8 +23,7 @@ export default function ProductCard({ product, onClick, onToggleFavorite, compac
       onClick={() => onClick && onClick(product)}
       className="group cursor-pointer bg-surface rounded-xl overflow-hidden border border-border hover:border-accent/50 transition-all duration-200 flex flex-col shadow-sm"
     >
-      {/* Zone Image : Format compact 4/3 pour gagner en hauteur */}
-      <div className={`aspect-[4/3] bg-background relative overflow-hidden`}>
+      <div className={`bg-background relative overflow-hidden ${compact ? 'aspect-[4/3]' : 'aspect-square'}`}>
         {product.mainImage ? (
           <img 
             src={product.mainImage} 
@@ -58,7 +58,6 @@ export default function ProductCard({ product, onClick, onToggleFavorite, compac
         </button>
       </div>
       
-      {/* Zone Infos : Marges et textes réduits */}
       <div className="p-3 flex flex-col flex-1">
         <h3 className="font-semibold text-primary truncate text-sm mb-0.5" title={product.name}>
           {product.name}
