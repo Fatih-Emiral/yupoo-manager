@@ -16,6 +16,7 @@ export interface Product {
   resalePrice: number;
   shippingCost: number;
   otherCosts: number;
+  roi?: number;           // Ajout de la propriété ROI pour corriger l'erreur
 }
 
 export interface AppSettings {
