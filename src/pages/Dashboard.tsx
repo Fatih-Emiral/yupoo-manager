@@ -10,12 +10,10 @@ export default function Dashboard() {
   const recentProducts = [...products].sort((a, b) => b.createdAt - a.createdAt).slice(0, 4);
   const favProductsList = favoriteProducts.slice(0, 4);
   
-  // 1. CALCUL DYNAMIQUE DU ROI POUR TOUS LES PRODUITS
   const productsWithROI = products.map(p => {
     const totalCost = (p.priceEur || 0) + (p.shippingCost || 0) + (p.otherCosts || 0);
     let calculatedRoi = 0;
     
-    // On ne calcule que si un prix de revente a été saisi
     if (totalCost > 0 && p.resalePrice && p.resalePrice > 0) {
        const profit = p.resalePrice - totalCost;
        calculatedRoi = (profit / totalCost) * 100;
@@ -24,7 +22,6 @@ export default function Dashboard() {
     return { ...p, calculatedRoi, hasData: p.resalePrice && p.resalePrice > 0 && totalCost > 0 };
   }).filter(p => p.hasData);
 
-  // 2. MOYENNE ET CLASSEMENT
   const avgRoi = productsWithROI.length > 0 
     ? productsWithROI.reduce((acc, p) => acc + p.calculatedRoi, 0) / productsWithROI.length 
     : 0;
@@ -33,7 +30,6 @@ export default function Dashboard() {
     .sort((a, b) => b.calculatedRoi - a.calculatedRoi)
     .slice(0, 5);
 
-  // 3. SEGMENTS DU CAMEMBERT (SVG)
   let excellentPct = 0, mediumPct = 0, lowPct = 0;
   if (productsWithROI.length > 0) {
     let excellentCount = 0, mediumCount = 0, lowCount = 0;
@@ -47,7 +43,6 @@ export default function Dashboard() {
     lowPct = (lowCount / productsWithROI.length) * 100;
   }
 
-  // Configuration du cercle SVG (rayon 15.9155 = circonférence de 100)
   const excellentDasharray = `${excellentPct} 100`;
   const mediumDasharray = `${mediumPct} 100`;
   const mediumOffset = -excellentPct;
@@ -111,19 +106,18 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         
-        {/* GRAPHIQUE ROI RÉPARÉ */}
         <div className="bg-surface rounded-xl border border-border p-4 lg:col-span-1 flex flex-col xl:flex-row gap-6">
           <div className="flex-1">
             <h2 className="font-bold mb-4 flex items-center gap-2 text-sm">Analyse de rentabilité</h2>
             
             <div className="flex items-center gap-4 mt-2">
-              {/* Vrai graphique SVG qui se remplit selon les données */}
               <div className="relative w-20 h-20 shrink-0">
-                <svg viewBox="0 0 32 32" className="w-full h-full transform -rotate-90">
-                  <circle r="15.9155" cx="16" cy="16" fill="transparent" stroke="currentColor" className="text-border/30" strokeWidth="6" />
-                  {excellentPct > 0 && <circle r="15.9155" cx="16" cy="16" fill="transparent" stroke="#10b981" strokeWidth="6" strokeDasharray={excellentDasharray} strokeDashoffset="0" />}
-                  {mediumPct > 0 && <circle r="15.9155" cx="16" cy="16" fill="transparent" stroke="#f59e0b" strokeWidth="6" strokeDasharray={mediumDasharray} strokeDashoffset={mediumOffset} />}
-                  {lowPct > 0 && <circle r="15.9155" cx="16" cy="16" fill="transparent" stroke="#ef4444" strokeWidth="6" strokeDasharray={lowDasharray} strokeDashoffset={lowOffset} />}
+                {/* viewBox agrandie à 40x40 et cercles centrés à 20x20 pour éviter la coupure */}
+                <svg viewBox="0 0 40 40" className="w-full h-full transform -rotate-90">
+                  <circle r="15.9155" cx="20" cy="20" fill="transparent" stroke="currentColor" className="text-border/30" strokeWidth="6" />
+                  {excellentPct > 0 && <circle r="15.9155" cx="20" cy="20" fill="transparent" stroke="#10b981" strokeWidth="6" strokeDasharray={excellentDasharray} strokeDashoffset="0" />}
+                  {mediumPct > 0 && <circle r="15.9155" cx="20" cy="20" fill="transparent" stroke="#f59e0b" strokeWidth="6" strokeDasharray={mediumDasharray} strokeDashoffset={mediumOffset} />}
+                  {lowPct > 0 && <circle r="15.9155" cx="20" cy="20" fill="transparent" stroke="#ef4444" strokeWidth="6" strokeDasharray={lowDasharray} strokeDashoffset={lowOffset} />}
                 </svg>
               </div>
               
