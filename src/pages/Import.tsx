@@ -1,176 +1,218 @@
 import { useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
-import { fetchYupooData } from '../core/scraper/yupooService';
-import { guessCategory } from '../core/scraper/categoryEngine';
-import type { Category, Product } from '../types/index';
-import { cnyToEur } from '../core/calculator';
-import { Search, Loader2, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { Link as LinkIcon, Image as ImageIcon, AlertCircle, Plus, Loader2, Store } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Import() {
-  const addProduct = useStore(state => state.addProduct);
-  const rate = useStore(state => state.settings.exchangeRate);
   const navigate = useNavigate();
+  const { addProduct, settings, sellers } = useStore();
   
   const [url, setUrl] = useState('');
-  const [status, setStatus] = useState<'IDLE' | 'LOADING' | 'REVIEW'>('IDLE');
-  const [errorMsg, setErrorMsg] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   
-  const [formData, setFormData] = useState({
-    name: '', seller: '', category: 'Autre' as Category, 
-    priceCny: 0, description: ''
-  });
-  const [images, setImages] = useState<string[]>([]);
-  const [mainImageIndex, setMainImageIndex] = useState<number>(0);
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState('Autre');
+  const [priceCny, setPriceCny] = useState<number | ''>('');
+  const [sellerId, setSellerId] = useState(''); // Nouveau système de revendeur
+  const [mainImage, setMainImage] = useState('');
+  const [fetchedImages, setFetchedImages] = useState<string[]>([]);
 
-  const handleFetch = async (e: React.FormEvent) => {
+  // Liste des catégories
+  const categories = ['T-shirt', 'Pull', 'Manteau', 'Jean', 'Jogging', 'Short', 'Chaussure', 'Bijou', 'Montre', 'Autre'];
+
+  const handleExtract = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url.includes('yupoo.com')) {
-      setErrorMsg("Ce n'est pas un lien Yupoo valide.");
+      setError('Veuillez entrer un lien Yupoo valide.');
       return;
     }
 
-    setStatus('LOADING');
-    setErrorMsg('');
-    
-    const scrapedData = await fetchYupooData(url);
-    
-    if (scrapedData) {
-      setFormData({
-        name: scrapedData.title,
-        seller: scrapedData.seller,
-        category: guessCategory(scrapedData.title),
-        priceCny: 0,
-        description: ''
+    setLoading(true);
+    setError('');
+
+    try {
+      // Utilisation d'un Proxy CORS public (AllOrigins) pour contourner la protection Yupoo
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+      const response = await fetch(proxyUrl);
+      const data = await response.json();
+      
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(data.contents, 'text/html');
+
+      // Extraction du titre
+      const titleEl = doc.querySelector('.showalbumheader__gallerytitle');
+      const fetchedTitle = titleEl ? titleEl.textContent?.trim() : doc.title;
+      if (fetchedTitle) setName(fetchedTitle);
+
+      // Extraction des images
+      const imgEls = doc.querySelectorAll('img[data-origin-src], .showalbum__children img, .image__img');
+      const images: string[] = [];
+      
+      imgEls.forEach(img => {
+        let src = img.getAttribute('data-origin-src') || img.getAttribute('src');
+        if (src && !src.includes('data:image')) {
+          if (src.startsWith('//')) src = 'https:' + src;
+          if (!images.includes(src)) images.push(src);
+        }
       });
-      setImages(scrapedData.images);
-    } else {
-      // Fallback manuel si le proxy échoue
-      setErrorMsg("Impossible d'extraire les données automatiquement (Protection Yupoo). Veuillez remplir manuellement.");
+
+      if (images.length > 0) {
+        setMainImage(images[0]);
+        setFetchedImages(images);
+      } else {
+        setError('Aucune image trouvée sur cette page.');
+      }
+    } catch (err) {
+      setError('Impossible d\'extraire les données automatiquement (Protection Yupoo). Veuillez remplir manuellement.');
+    } finally {
+      setLoading(false);
     }
-    setStatus('REVIEW');
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const newProduct: Product = {
-      id: uuidv4(),
+  const handleSave = async () => {
+    if (!name || !url) return;
+
+    await addProduct({
+      id: Date.now().toString(),
+      name,
+      category: category as any,
+      seller: '', // On laisse vide pour utiliser sellerId
+      sellerId: sellerId || undefined,
       yupooUrl: url,
-      name: formData.name || 'Produit sans nom',
-      category: formData.category,
-      seller: formData.seller,
-      priceCny: formData.priceCny,
-      priceEur: cnyToEur(formData.priceCny, rate),
-      mainImage: images.length > 0 ? images[mainImageIndex] : '',
-      images: images,
-      description: formData.description,
+      mainImage,
+      images: fetchedImages,
+      priceCny: Number(priceCny) || 0,
+      priceEur: Number(((Number(priceCny) || 0) / settings.exchangeRate).toFixed(2)),
+      description: '',
       favorite: false,
       createdAt: Date.now(),
-      resalePrice: 0, shippingCost: 0, otherCosts: 0
-    };
-    await addProduct(newProduct);
+      resalePrice: 0,
+      shippingCost: 0,
+      otherCosts: 0
+    });
+
     navigate('/catalog');
   };
 
-  const categories: Category[] = ['T-shirt', 'Pull', 'Manteau', 'Jean', 'Jogging', 'Short', 'Chaussure', 'Bijou', 'Montre', 'Autre'];
-
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <h2 className="text-2xl font-bold">Importer depuis Yupoo</h2>
-      
-      {status === 'IDLE' && (
-        <form onSubmit={handleFetch} className="bg-dark-800 p-8 rounded-xl border border-dark-700 shadow-lg">
-          <div className="flex gap-4">
-            <input 
-              type="url" required value={url} onChange={e => setUrl(e.target.value)}
-              className="flex-1 bg-dark-900 border border-dark-700 rounded-lg p-4 text-white focus:border-blue-500 outline-none transition-colors"
-              placeholder="Collez le lien de l'album Yupoo ici..."
-            />
-            <button type="submit" className="bg-blue-600 hover:bg-blue-700 px-8 rounded-lg font-medium transition-colors flex items-center gap-2">
-              <Search size={20} /> Analyser
-            </button>
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-primary">Importer</h1>
+        <p className="text-muted mt-1">Ajoutez un nouveau produit à votre catalogue</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* Colonne Formulaire (Gauche) */}
+        <div className="lg:col-span-7 space-y-6">
+          {/* Étape 1 : Le lien */}
+          <div className="bg-surface border border-border rounded-2xl p-6">
+            <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><LinkIcon size={20} className="text-accent" /> 1. Lien du produit</h2>
+            <form onSubmit={handleExtract} className="flex flex-col sm:flex-row gap-3">
+              <input 
+                type="url" 
+                value={url} 
+                onChange={(e) => setUrl(e.target.value)} 
+                placeholder="https://vendeur.x.yupoo.com/albums/..." 
+                className="flex-1 h-12 bg-background border border-border rounded-xl px-4 text-primary focus:border-accent outline-none"
+                required
+              />
+              <button 
+                type="submit" 
+                disabled={loading || !url} 
+                className="h-12 px-6 bg-accent hover:bg-accent-hover text-white rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center min-w-[140px]"
+              >
+                {loading ? <Loader2 className="animate-spin" size={20} /> : 'Extraire'}
+              </button>
+            </form>
           </div>
-          {errorMsg && <p className="text-red-400 mt-4 flex items-center gap-2"><AlertCircle size={16}/> {errorMsg}</p>}
-        </form>
-      )}
 
-      {status === 'LOADING' && (
-        <div className="flex flex-col items-center justify-center p-12 text-gray-400">
-          <Loader2 className="animate-spin mb-4" size={40} />
-          <p>Analyse de la page Yupoo en cours via proxy...</p>
-          <p className="text-sm mt-2 text-dark-500">Cela peut prendre quelques secondes.</p>
-        </div>
-      )}
-
-      {status === 'REVIEW' && (
-        <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Colonne Gauche : Données */}
-          <div className="space-y-4 bg-dark-800 p-6 rounded-xl border border-dark-700">
-            {errorMsg && (
-              <div className="p-4 bg-red-900/20 border border-red-700/50 rounded-lg text-red-400 text-sm mb-4">
-                {errorMsg}
+          {/* Étape 2 : Informations */}
+          <div className="bg-surface border border-border rounded-2xl p-6">
+            <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><ImageIcon size={20} className="text-accent" /> 2. Informations</h2>
+            
+            {error && (
+              <div className="mb-6 p-4 bg-danger/10 border border-danger/20 rounded-xl text-danger flex items-start gap-3 text-sm">
+                <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                <p>{error}</p>
               </div>
             )}
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Nom du produit</label>
-              <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-dark-900 border border-dark-700 rounded-lg p-3" />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
+
+            <div className="space-y-5">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Catégorie</label>
-                <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value as Category})} className="w-full bg-dark-900 border border-dark-700 rounded-lg p-3">
-                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <label className="block text-sm text-muted mb-2">Nom du produit</label>
+                <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full h-12 bg-background border border-border rounded-xl px-4 text-primary focus:border-accent outline-none" placeholder="Ex: Nike Dunk Low Panda" />
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm text-muted mb-2">Catégorie</label>
+                  <select value={category} onChange={e => setCategory(e.target.value)} className="w-full h-12 bg-background border border-border rounded-xl px-4 text-primary focus:border-accent outline-none">
+                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-muted mb-2">Prix (¥ CNY)</label>
+                  <input type="number" value={priceCny} onChange={e => setPriceCny(Number(e.target.value))} className="w-full h-12 bg-background border border-border rounded-xl px-4 text-primary focus:border-accent outline-none" placeholder="Ex: 260" />
+                  {priceCny && <p className="text-xs text-muted mt-1.5 ml-1">≈ {((Number(priceCny) || 0) / settings.exchangeRate).toFixed(2)} €</p>}
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Prix (¥ CNY)</label>
-                <input type="number" min="0" step="0.1" value={formData.priceCny} onChange={e => setFormData({...formData, priceCny: Number(e.target.value)})} className="w-full bg-dark-900 border border-dark-700 rounded-lg p-3" />
-                <p className="text-xs text-gray-500 mt-1">≈ {cnyToEur(formData.priceCny, rate)} €</p>
+                <label className="block text-sm text-muted mb-2">Revendeur</label>
+                <div className="relative">
+                  <Store className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" size={18} />
+                  <select value={sellerId} onChange={e => setSellerId(e.target.value)} className="w-full h-12 bg-background border border-border rounded-xl pl-12 pr-4 text-primary focus:border-accent outline-none appearance-none">
+                    <option value="">-- Aucun revendeur associé --</option>
+                    {sellers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Vendeur</label>
-              <input type="text" value={formData.seller} onChange={e => setFormData({...formData, seller: e.target.value})} className="w-full bg-dark-900 border border-dark-700 rounded-lg p-3" />
-            </div>
-            
-            <div className="pt-4 flex gap-4">
-              <button type="button" onClick={() => setStatus('IDLE')} className="flex-1 bg-dark-700 p-3 rounded-lg">Annuler</button>
-              <button type="submit" className="flex-1 bg-blue-600 p-3 rounded-lg font-medium text-white">Ajouter au Catalogue</button>
+            <div className="mt-8 pt-6 border-t border-border flex justify-end gap-3">
+              <button onClick={() => navigate('/catalog')} className="px-6 py-2.5 rounded-xl border border-border hover:bg-surface-hover transition-colors font-medium">Annuler</button>
+              <button onClick={handleSave} disabled={!name || !url} className="px-6 py-2.5 bg-accent hover:bg-accent-hover text-white rounded-xl transition-colors font-medium disabled:opacity-50 flex items-center gap-2">
+                <Plus size={18} /> Ajouter au catalogue
+              </button>
             </div>
           </div>
+        </div>
 
-          {/* Colonne Droite : Galerie */}
-          <div className="bg-dark-800 p-6 rounded-xl border border-dark-700">
-            <h3 className="text-sm text-gray-400 mb-4">Photos récupérées ({images.length})</h3>
+        {/* Colonne Images (Droite) */}
+        <div className="lg:col-span-5">
+          <div className="bg-surface border border-border rounded-2xl p-6 h-full min-h-[400px] flex flex-col">
+            <h2 className="text-lg font-bold mb-4">Photos récupérées ({fetchedImages.length})</h2>
             
-            {images.length > 0 ? (
+            {mainImage ? (
               <div className="space-y-4">
-                {/* Image Principale (avec referrerPolicy pour contrer Yupoo) */}
-                <div className="aspect-square bg-dark-900 rounded-lg border border-dark-700 overflow-hidden flex items-center justify-center">
-                  <img src={images[mainImageIndex]} alt="Main" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                <div className="aspect-[4/3] rounded-xl overflow-hidden bg-background border border-border relative">
+                  <img src={mainImage} alt="Principale" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                  <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium text-white border border-white/10">Image principale</div>
                 </div>
-                {/* Grille de sélection */}
-                <div className="grid grid-cols-4 gap-2">
-                  {images.map((img, idx) => (
-                    <button key={idx} type="button" onClick={() => setMainImageIndex(idx)}
-                      className={`aspect-square rounded-md overflow-hidden border-2 ${mainImageIndex === idx ? 'border-blue-500' : 'border-transparent'}`}>
-                      <img src={img} alt={`Thumb ${idx}`} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
-                    </button>
-                  ))}
-                </div>
+                
+                {fetchedImages.length > 1 && (
+                  <div className="grid grid-cols-4 gap-2">
+                    {fetchedImages.slice(0, 8).map((img, idx) => (
+                      <button key={idx} onClick={() => setMainImage(img)} className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${mainImage === img ? 'border-accent' : 'border-transparent opacity-60 hover:opacity-100'}`}>
+                        <img src={img} referrerPolicy="no-referrer" alt={`Miniature ${idx}`} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="aspect-square bg-dark-900 rounded-lg border border-dark-700 flex flex-col items-center justify-center text-gray-500">
-                <ImageIcon size={48} className="mb-2 opacity-50" />
-                <p className="text-sm text-center px-4">Aucune image récupérée automatiquement.<br/>Ajoutez-les manuellement plus tard.</p>
+              <div className="flex-1 flex flex-col items-center justify-center text-muted border-2 border-dashed border-border rounded-xl bg-background/50">
+                <ImageIcon size={48} className="opacity-20 mb-4" />
+                <p className="text-sm">Aucune image récupérée.</p>
+                <p className="text-xs opacity-70 mt-1 text-center px-4">Ajoutez un lien valide et cliquez sur Extraire.</p>
               </div>
             )}
           </div>
-        </form>
-      )}
+        </div>
+        
+      </div>
     </div>
   );
 }
